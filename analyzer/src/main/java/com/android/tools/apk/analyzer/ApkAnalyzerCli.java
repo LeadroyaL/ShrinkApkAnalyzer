@@ -122,7 +122,13 @@ public class ApkAnalyzerCli {
                         err.println();
                         err.println("ERROR: " + e.getMessage());
                     }
-                    exit(1);
+                    int _uid = Process.myUid();
+                    if (_uid == Process.ROOT_UID || _uid == Process.SHELL_UID) {
+                        // exit when running with root or shell
+                        exit(1);
+                    } else {
+                        // don't exit when running with app
+                    }
                 }
                 return;
             }

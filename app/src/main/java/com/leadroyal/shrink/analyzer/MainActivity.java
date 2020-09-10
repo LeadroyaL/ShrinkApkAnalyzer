@@ -30,6 +30,7 @@ public class MainActivity extends AppCompatActivity {
                 Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
                 ApkAnalyzerCli.main(new String[]{});
+                ApkAnalyzerCli.main(new String[]{"manifest", "print", "12345"});
                 ApkAnalyzerCli.main(new String[]{"manifest", "print", getPackageName()});
                 ApkAnalyzerCli.main(new String[]{"apk", "summary", getApplicationInfo().publicSourceDir});
                 ApkAnalyzerCli.main(new String[]{"manifest", "print", getApplicationInfo().publicSourceDir});
