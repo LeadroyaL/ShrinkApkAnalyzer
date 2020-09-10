@@ -16,6 +16,12 @@
 
 package com.android.tools.apk.analyzer;
 
+import android.content.pm.IPackageManager;
+import android.os.IBinder;
+import android.os.Process;
+import android.os.RemoteException;
+import android.os.ServiceManager;
+
 import com.android.annotations.NonNull;
 import com.android.annotations.Nullable;
 import joptsimple.*;
@@ -46,9 +52,13 @@ public class ApkAnalyzerCli {
     private static final String ACTION_DEBUGGABLE = "debuggable";
     private static final String ACTION_XML = "xml";
 
+    private static final int DEFAULT_USER_ID = 0;
+
     private final PrintStream out;
     private final PrintStream err;
     private final ApkAnalyzerImpl impl;
+
+    private static IPackageManager iPackageManager;
 
     private static final class HelpFormatter extends BuiltinHelpFormatter {
         public HelpFormatter() {
@@ -123,7 +133,7 @@ public class ApkAnalyzerCli {
                     "Usage:"
                             + System.lineSeparator()
                             + APKANALYZER
-                            + " [global options] <subject> <verb> [options] <apk> [<apk2>]"
+                            + " [global options] <subject> <verb> [options] <apk_or_pkg> [<apk_or_pkg2>]"
                             + System.lineSeparator());
             verbParser.printHelpOn(err);
         } catch (IOException e) {
@@ -187,7 +197,7 @@ public class ApkAnalyzerCli {
                     @NonNull String... args) {
                 OptionParser parser = getParser();
                 OptionSet opts = parseOrPrintHelp(parser, err, args);
-                impl.apkSummary(opts.valueOf(getFileSpec()).toPath());
+                impl.apkSummary(realFile(opts.valueOf(getFileSpec())).toPath());
             }
         },
 
@@ -200,7 +210,7 @@ public class ApkAnalyzerCli {
                     @NonNull String... args) {
                 OptionParser parser = getParser();
                 OptionSet opts = parseOrPrintHelp(parser, err, args);
-                impl.manifestPrint(opts.valueOf(getFileSpec()).toPath());
+                impl.manifestPrint(realFile(opts.valueOf(getFileSpec())).toPath());
             }
         },
         MANIFEST_APPLICATION_ID(
@@ -214,7 +224,7 @@ public class ApkAnalyzerCli {
                     @NonNull String... args) {
                 OptionParser parser = getParser();
                 OptionSet opts = parseOrPrintHelp(parser, err, args);
-                impl.manifestAppId(opts.valueOf(getFileSpec()).toPath());
+                impl.manifestAppId(realFile(opts.valueOf(getFileSpec())).toPath());
             }
         },
         MANIFEST_VERSION_NAME(SUBJECT_MANIFEST, ACTION_VERSION_NAME, "Prints the version name.") {
@@ -226,7 +236,7 @@ public class ApkAnalyzerCli {
                     @NonNull String... args) {
                 OptionParser parser = getParser();
                 OptionSet opts = parseOrPrintHelp(parser, err, args);
-                impl.manifestVersionName(opts.valueOf(getFileSpec()).toPath());
+                impl.manifestVersionName(realFile(opts.valueOf(getFileSpec())).toPath());
             }
         },
         MANIFEST_VERSION_CODE(SUBJECT_MANIFEST, ACTION_VERSION_CODE, "Prints the version code.") {
@@ -238,7 +248,7 @@ public class ApkAnalyzerCli {
                     @NonNull String... args) {
                 OptionParser parser = getParser();
                 OptionSet opts = parseOrPrintHelp(parser, err, args);
-                impl.manifestVersionCode(opts.valueOf(getFileSpec()).toPath());
+                impl.manifestVersionCode(realFile(opts.valueOf(getFileSpec())).toPath());
             }
         },
         MANIFEST_MIN_SDK(SUBJECT_MANIFEST, ACTION_MIN_SDK, "Prints the minimum sdk.") {
@@ -250,7 +260,7 @@ public class ApkAnalyzerCli {
                     @NonNull String... args) {
                 OptionParser parser = getParser();
                 OptionSet opts = parseOrPrintHelp(parser, err, args);
-                impl.manifestMinSdk(opts.valueOf(getFileSpec()).toPath());
+                impl.manifestMinSdk(realFile(opts.valueOf(getFileSpec())).toPath());
             }
         },
         MANIFEST_TARGET_SDK(SUBJECT_MANIFEST, ACTION_TARGET_SDK, "Prints the target sdk") {
@@ -262,7 +272,7 @@ public class ApkAnalyzerCli {
                     @NonNull String... args) {
                 OptionParser parser = getParser();
                 OptionSet opts = parseOrPrintHelp(parser, err, args);
-                impl.manifestTargetSdk(opts.valueOf(getFileSpec()).toPath());
+                impl.manifestTargetSdk(realFile(opts.valueOf(getFileSpec())).toPath());
             }
         },
         MANIFEST_DEBUGGABLE(
@@ -275,7 +285,7 @@ public class ApkAnalyzerCli {
                     @NonNull String... args) {
                 OptionParser parser = getParser();
                 OptionSet opts = parseOrPrintHelp(parser, err, args);
-                impl.manifestDebuggable(opts.valueOf(getFileSpec()).toPath());
+                impl.manifestDebuggable(realFile(opts.valueOf(getFileSpec())).toPath());
             }
         },
         RESOURCES_XML(
@@ -305,7 +315,7 @@ public class ApkAnalyzerCli {
                 OptionSet opts = parseOrPrintHelp(parser, err, args);
                 assert filePathSpec != null;
                 impl.resXml(
-                        opts.valueOf(getFileSpec()).toPath(), opts.valueOf(filePathSpec));
+                        realFile(opts.valueOf(getFileSpec())).toPath(), opts.valueOf(filePathSpec));
             }
         },
         ;
@@ -314,7 +324,7 @@ public class ApkAnalyzerCli {
         private final String verb;
         private final String subject;
         private OptionParser parser;
-        private NonOptionArgumentSpec<File> fileSpec;
+        private NonOptionArgumentSpec<String> fileSpec;
 
         Action(String subject, String verb, String description) {
             this.subject = subject;
@@ -326,7 +336,7 @@ public class ApkAnalyzerCli {
             parser = new OptionParser();
             parser.formatHelpWith(new HelpFormatter());
             fileSpec =
-                    parser.nonOptions("apk").describedAs("APK file path").ofType(File.class);
+                    parser.nonOptions("apk").describedAs("APK file path").ofType(String.class);
         }
 
         @NonNull
@@ -338,7 +348,7 @@ public class ApkAnalyzerCli {
         }
 
         @NonNull
-        public NonOptionArgumentSpec<File> getFileSpec(){
+        public NonOptionArgumentSpec<String> getFileSpec(){
             if (parser == null){
                 initParser();
             }
@@ -396,5 +406,24 @@ public class ApkAnalyzerCli {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    private static File realFile(String pkgOrPath) {
+        File file = new File(pkgOrPath);
+        if (file.exists())
+            return file;
+        try {
+            return queryPackagemanager(pkgOrPath);
+        } catch (RemoteException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static File queryPackagemanager(String pkg) throws RemoteException {
+        if (iPackageManager == null) {
+            IBinder binder = ServiceManager.getService("package");
+            iPackageManager = IPackageManager.Stub.asInterface(binder);
+        }
+        return new File(iPackageManager.getApplicationInfo(pkg, 0, DEFAULT_USER_ID).publicSourceDir);
     }
 }

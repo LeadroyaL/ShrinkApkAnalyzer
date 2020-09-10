@@ -44,6 +44,10 @@ app_process /system/bin com.android.tools.apk.analyzer.ApkAnalyzerCli manifest p
 
 当然也可以直接调用 API，点击 `FloatingActionButton` 就会执行一遍所有的指令。
 
+# 已知缺陷
+
+- 由于源码里有 java8 的特性 `Arrays.stream`，最低支持 Android N
+- 由于源码里使用 `java.nio.Path`，最低支持 Android O
 
 # 实现
 
@@ -87,6 +91,7 @@ git checkout studio-4.0.0
 
 大部分依赖已通过源码的方式植入，目前仅依赖
 
+- zipfs.jar
 - com.android.tools.apkparser:binary-resources
 - net.sf.jopt-simple:jopt-simple
 - com.google.guava:guava
