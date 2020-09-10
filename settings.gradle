@@ -1,0 +1,3 @@
+include ':analyzer'
+include ':app'
+rootProject.name = "ShrinkApkAnalyzer"
