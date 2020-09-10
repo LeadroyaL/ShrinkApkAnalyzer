@@ -2,6 +2,8 @@
 
 [EnglishVersion](EnglishVersion.md)
 
+### 将 Android SDK 里的为 PC 设计的 apkanalyzer 移植到安卓上
+
 `${SDK_HOME}/tools/bin/apkanalyzer` 提供访问 axml 文件（例如 AndroidManifest.xml、res/layout/*.xml）的功能，适用于我们仅想 dump 单个 axml 的情景。
 
 各个工具的对比：
