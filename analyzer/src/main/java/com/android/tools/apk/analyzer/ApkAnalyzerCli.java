@@ -87,7 +87,7 @@ public class ApkAnalyzerCli {
         instance.run(args);
     }
 
-    void run(String... args) {
+    public void run(String... args) {
         OptionParser verbParser = new OptionParser();
         verbParser.posixlyCorrect(true);
         verbParser.allowsUnrecognizedOptions();
