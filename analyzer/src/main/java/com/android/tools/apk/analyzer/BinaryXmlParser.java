@@ -209,7 +209,7 @@ public class BinaryXmlParser {
             case FRACTION:
                 return String.format(Locale.US, "fraction(%1$d)", data);
             case FLOAT:
-                return String.format(Locale.US, "%f", (float) data);
+                return String.format(Locale.US, "%f", Float.intBitsToFloat(data));
             case DYNAMIC_ATTRIBUTE:
                 //TODO: implement
                 break;
