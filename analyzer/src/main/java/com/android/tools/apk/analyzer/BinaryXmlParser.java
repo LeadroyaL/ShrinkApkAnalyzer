@@ -18,20 +18,12 @@ package com.android.tools.apk.analyzer;
 import com.android.SdkConstants;
 import com.android.annotations.NonNull;
 import com.android.annotations.Nullable;
+import com.android.utils.ResMap;
 import com.android.xml.XmlBuilder;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
-import com.google.devrel.gmscore.tools.apk.arsc.BinaryResourceFile;
-import com.google.devrel.gmscore.tools.apk.arsc.BinaryResourceValue;
-import com.google.devrel.gmscore.tools.apk.arsc.Chunk;
-import com.google.devrel.gmscore.tools.apk.arsc.StringPoolChunk;
-import com.google.devrel.gmscore.tools.apk.arsc.XmlAttribute;
-import com.google.devrel.gmscore.tools.apk.arsc.XmlChunk;
-import com.google.devrel.gmscore.tools.apk.arsc.XmlEndElementChunk;
-import com.google.devrel.gmscore.tools.apk.arsc.XmlNamespaceEndChunk;
-import com.google.devrel.gmscore.tools.apk.arsc.XmlNamespaceStartChunk;
-import com.google.devrel.gmscore.tools.apk.arsc.XmlResourceMapChunk;
-import com.google.devrel.gmscore.tools.apk.arsc.XmlStartElementChunk;
+import com.google.devrel.gmscore.tools.apk.arsc.*;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -120,9 +112,15 @@ public class BinaryXmlParser {
         private Map<String, String> namespaces = new HashMap<>();
         private boolean namespacesAdded;
         private StringPoolChunk stringPool;
+        private XmlResourceMapChunk xmlResourceMapChunk;
 
         public XmlPrinter() {
             builder = new XmlBuilder();
+        }
+
+        @Override
+        public void xmlResourceMap(@NonNull XmlResourceMapChunk chunk) {
+            xmlResourceMapChunk = chunk;
         }
 
         @Override
@@ -150,7 +148,16 @@ public class BinaryXmlParser {
 
             for (XmlAttribute xmlAttribute : chunk.getAttributes()) {
                 String prefix = notNullize(namespaces.get(xmlAttribute.namespace()));
-                builder.attribute(prefix, xmlAttribute.name(), getValue(xmlAttribute));
+                String attrName = xmlAttribute.name();
+                try {
+                    int index = xmlAttribute.nameIndex();
+                    BinaryResourceIdentifier binaryResourceIdentifier = xmlResourceMapChunk.getResourceId(index);
+                    attrName = ResMap.id2name.get(binaryResourceIdentifier.toString());
+                    prefix = "android";
+                } catch (Exception exception) {
+                    // pass
+                }
+                builder.attribute(prefix, attrName, getValue(xmlAttribute));
             }
         }
 
@@ -202,7 +209,7 @@ public class BinaryXmlParser {
             case FRACTION:
                 return String.format(Locale.US, "fraction(%1$d)", data);
             case FLOAT:
-                return String.format(Locale.US, "%f", (float) data);
+                return String.format(Locale.US, "%f", Float.intBitsToFloat(data));
             case DYNAMIC_ATTRIBUTE:
                 //TODO: implement
                 break;
